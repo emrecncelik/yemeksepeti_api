@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import logging
 import argparse
 import pandas as pd
@@ -37,6 +38,13 @@ if __name__ == "__main__":
         type=int,
         help="Max number of reviews to get. Defaults to unlimited.",
     )
+    parser.add_argument(
+        "-s",
+        "--save_every_n_area",
+        default=10,
+        type=int,
+        help="Saves collected reviews to output path every N area. Defaults to 10.",
+    )
 
     args = parser.parse_args()
     yemeksepeti = YemeksepetiApi()
@@ -51,13 +59,12 @@ if __name__ == "__main__":
     ]
 
     if args.cities is None:
-        cities = list(map(lambda cat: cat["CatalogName"], yemeksepeti.get_catalogs()))[
-            :2
-        ]
+        cities = list(map(lambda cat: cat["CatalogName"], yemeksepeti.get_catalogs()))
     else:
         cities = args.cities
 
     reviews = []
+    review_count = 0
     for city_count, city in enumerate(cities):
         area_ids = list(
             map(lambda area: area["Id"], yemeksepeti.get_catalog_areas(catalog=city))
@@ -74,26 +81,34 @@ if __name__ == "__main__":
                 for rev in reviews_temp:
                     rev.update({"City": city})
                 reviews.extend(reviews_temp)
+                review_count += len(reviews_temp)
                 logging.info(
-                    f"City ({city}): {city_count}/{len(city)} | Area: {area_count}/{len(area_ids)} | Num of reviews: {len(reviews)}"
+                    f"City ({city}): {city_count}/{len(city)} | Area: {area_count}/{len(area_ids)} | Num of reviews: {review_count}"
                 )
 
-                if args.max_reviews is not None and len(reviews) >= args.max_reviews:
+                if args.max_reviews is not None and review_count >= args.max_reviews:
                     break
-            if args.max_reviews is not None and len(reviews) >= args.max_reviews:
+            if args.max_reviews is not None and review_count >= args.max_reviews:
                 break
 
-            if area_count % 10 == 0:
+            if area_count % args.save_every_n_area == 0:
                 logging.info(
-                    f"Saving the data collected until now. Num of reviews: {len(reviews)}"
+                    f"Saving the data collected until now. Num of reviews: {review_count}"
                 )
-                pd.DataFrame(reviews)[columns].to_csv(args.output_path, index=False)
+                pd.DataFrame(reviews)[columns].to_csv(
+                    args.output_path,
+                    mode="a",
+                    header=not os.path.exists(args.output_path),
+                    index=False,
+                )
+                reviews = []
 
         if args.max_reviews is not None and len(reviews) >= args.max_reviews:
             break
 
-    reviews = pd.DataFrame(reviews)[columns]
-    if args.max_reviews:
-        reviews = reviews[: args.max_reviews]
-
-    reviews.to_csv(args.output_path, index=False)
+    pd.DataFrame(reviews)[columns].to_csv(
+        args.output_path,
+        mode="a",
+        header=not os.path.exists(args.output_path),
+        index=False,
+    )
