@@ -83,7 +83,7 @@ if __name__ == "__main__":
                     logging.error(
                         f"Got NoneType from yemeksepeti.get_restaurant_reviews at {restaurant} {city} {area_id}"
                     )
-                    time.sleep(10)
+                    time.sleep(0.1)
                     continue
 
                 for rev in reviews_temp:
