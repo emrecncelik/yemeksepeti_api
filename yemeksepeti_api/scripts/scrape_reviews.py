@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 import logging
 import argparse
 import pandas as pd
@@ -78,6 +79,13 @@ if __name__ == "__main__":
                 reviews_temp = yemeksepeti.get_restaurant_reviews(
                     category_name=restaurant, catalog=city, area_id=area_id
                 )
+                if not reviews_temp:
+                    logging.error(
+                        f"Got NoneType from yemeksepeti.get_restaurant_reviews at {restaurant} {city} {area_id}"
+                    )
+                    time.sleep(10)
+                    continue
+
                 for rev in reviews_temp:
                     rev.update({"City": city})
                 reviews.extend(reviews_temp)
