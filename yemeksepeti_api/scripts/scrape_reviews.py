@@ -5,8 +5,21 @@ import time
 import logging
 import argparse
 import pandas as pd
+from collections import deque
 from yemeksepeti_api.yemeksepeti_api import YemeksepetiApi
 
+delay_reviews = 0.01
+delay_cities = 15
+delay_areas = 15
+columns = [
+    "Comment",
+    "CommentDate",
+    "Flavour",
+    "Speed",
+    "Serving",
+    "RestaurantDisplayName",
+    "City",
+]
 
 if __name__ == "__main__":
 
@@ -49,15 +62,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     yemeksepeti = YemeksepetiApi()
-    columns = [
-        "Comment",
-        "CommentDate",
-        "Flavour",
-        "Speed",
-        "Serving",
-        "RestaurantDisplayName",
-        "City",
-    ]
 
     if args.cities is None:
         cities = list(map(lambda cat: cat["CatalogName"], yemeksepeti.get_catalogs()))
@@ -66,28 +70,46 @@ if __name__ == "__main__":
 
     reviews = []
     review_count = 0
+    stuck_count = 0
     for city_count, city in enumerate(cities):
+        time.sleep(delay_cities)
         area_ids = list(
             map(lambda area: area["Id"], yemeksepeti.get_catalog_areas(catalog=city))
         )
         for area_count, area_id in enumerate(area_ids):
+            time.sleep(delay_areas)
             restaurants = map(
                 lambda rest: rest["CategoryName"],
                 yemeksepeti.search_restaurants(catalog=city, area_id=area_id),
             )
             for restaurant in restaurants:
+                time.sleep(delay_reviews)
                 reviews_temp = yemeksepeti.get_restaurant_reviews(
                     category_name=restaurant, catalog=city, area_id=area_id
                 )
+                deque.append(reviews_temp)
+
                 if not reviews_temp:
                     logging.error(
                         f"Got NoneType from yemeksepeti.get_restaurant_reviews at {restaurant} {city} {area_id}"
                     )
-                    time.sleep(0.1)
+                    if all([q is None for q in deque]):
+                        stuck_count += 1
+                        logging.error(
+                            f"Got NoneType from yemeksepeti.get_restaurant_reviews 5 times in a row. Waiting {(600 * stuck_count)/60} minutes"
+                        )
+                        time.sleep(600 * stuck_count)
+                        if stuck_count % 5 == 0 and stuck_count != 0:
+                            delay_reviews += 0.01
+                            logging.error(
+                                f"Got stuck {stuck_count} times, updating delay between reviews. Delay: {delay_reviews}"
+                            )
+
                     continue
 
                 for rev in reviews_temp:
                     rev.update({"City": city})
+
                 reviews.extend(reviews_temp)
                 review_count += len(reviews_temp)
                 logging.info(
