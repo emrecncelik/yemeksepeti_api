@@ -24,6 +24,7 @@ setup(
     packages=find_packages(
         include=[
             "yemeksepeti_api",
+            "yemeksepeti_api.scripts",
         ]
     ),
     zip_safe=False,
