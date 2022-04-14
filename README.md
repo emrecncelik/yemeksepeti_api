@@ -62,6 +62,14 @@ print(random_review['Flavour'], random_review['Serving'], random_review['Speed']
 ```
 Reviews include their scores, date and comment text and various other information.
 
+# Scripts
+Here is a python script included in the package. It collects all reviews from the given cities. You can specify the maximum number of reviews you want to collect.
+```
+python -m yemeksepeti_api.scripts.scrape_reviews \
+    --cities TR_ISTANBUL TR_IZMIR \
+    --max_reviews 1000 \
+    --output_path data.csv \
+```
 # Data Dump
 
 * **3,536,968** records
