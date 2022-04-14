@@ -71,7 +71,6 @@ if __name__ == "__main__":
         help="Everytime you get timed out n times, adjust delay between requests.",
     )
     parser.add_argument(
-        "-a",
         "--adjust_delay_every_n_stuck",
         default=1,
         type=int,
