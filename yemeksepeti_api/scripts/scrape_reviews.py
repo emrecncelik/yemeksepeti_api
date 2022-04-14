@@ -8,9 +8,6 @@ import pandas as pd
 from collections import deque
 from yemeksepeti_api.yemeksepeti_api import YemeksepetiApi
 
-delay_reviews = 0.01
-delay_cities = 15
-delay_areas = 15
 columns = [
     "Comment",
     "CommentDate",
@@ -59,6 +56,27 @@ if __name__ == "__main__":
         type=int,
         help="Saves collected reviews to output path every N area. Defaults to 10.",
     )
+    parser.add_argument(
+        "-d",
+        "--delay_review",
+        default=0.01,
+        type=float,
+        help="Delay between request for reviews.",
+    )
+    parser.add_argument(
+        "-a",
+        "--adjust_value",
+        default=0.01,
+        type=float,
+        help="Everytime you get timed out n times, adjust delay between requests.",
+    )
+    parser.add_argument(
+        "-a",
+        "--adjust_delay_every_n_stuck",
+        default=1,
+        type=int,
+        help="Everytime you get timed out, adjusts delay between requests by adjust value.",
+    )
 
     args = parser.parse_args()
     yemeksepeti = YemeksepetiApi()
@@ -71,38 +89,39 @@ if __name__ == "__main__":
     reviews = []
     review_count = 0
     stuck_count = 0
+    queue = deque(maxlen=5)
     for city_count, city in enumerate(cities):
-        time.sleep(delay_cities)
         area_ids = list(
             map(lambda area: area["Id"], yemeksepeti.get_catalog_areas(catalog=city))
         )
         for area_count, area_id in enumerate(area_ids):
-            time.sleep(delay_areas)
             restaurants = map(
                 lambda rest: rest["CategoryName"],
                 yemeksepeti.search_restaurants(catalog=city, area_id=area_id),
             )
             for restaurant in restaurants:
-                time.sleep(delay_reviews)
+                time.sleep(args.delay_review)
                 reviews_temp = yemeksepeti.get_restaurant_reviews(
                     category_name=restaurant, catalog=city, area_id=area_id
                 )
-                deque.append(reviews_temp)
-
+                queue.append(not isinstance(reviews_temp, list))
                 if not reviews_temp:
                     logging.error(
                         f"Got NoneType from yemeksepeti.get_restaurant_reviews at {restaurant} {city} {area_id}"
                     )
-                    if all([q is None for q in deque]):
+                    if all(queue):
                         stuck_count += 1
                         logging.error(
                             f"Got NoneType from yemeksepeti.get_restaurant_reviews 5 times in a row. Waiting {(600 * stuck_count)/60} minutes"
                         )
                         time.sleep(600 * stuck_count)
-                        if stuck_count % 5 == 0 and stuck_count != 0:
-                            delay_reviews += 0.01
+                        if (
+                            stuck_count % args.adjust_delay_every_n_stuck == 0
+                            and stuck_count != 0
+                        ):
+                            args.delay_review += args.adjust_value
                             logging.error(
-                                f"Got stuck {stuck_count} times, updating delay between reviews. Delay: {delay_reviews}"
+                                f"Got stuck {stuck_count} times, updating delay between reviews. Delay: {args.delay_review}"
                             )
 
                     continue
