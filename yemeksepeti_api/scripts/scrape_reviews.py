@@ -99,14 +99,58 @@ if __name__ == "__main__":
     stuck_count = 0
     queue = deque(maxlen=5)
     for city_count, city in enumerate(cities):
-        area_ids = list(
-            map(lambda area: area["Id"], yemeksepeti.get_catalog_areas(catalog=city))
-        )
-        for area_count, area_id in enumerate(area_ids):
-            restaurants = map(
-                lambda rest: rest["CategoryName"],
-                yemeksepeti.search_restaurants(catalog=city, area_id=area_id),
+        try:
+            area_ids = list(
+                map(
+                    lambda area: area["Id"], yemeksepeti.get_catalog_areas(catalog=city)
+                )
             )
+        except TypeError as e:
+            logging.error(f"Error while getting areas: {e}")
+            queue.append(False)
+            if all(queue):
+                stuck_count += 1
+                logging.error(
+                    f"Got NoneType from yemeksepeti.get_catalog_areas 5 times in a row. Waiting {(600 * stuck_count)/60} minutes"
+                )
+                time.sleep(600 * stuck_count)
+                if (
+                    stuck_count % args.adjust_delay_every_n_stuck == 0
+                    and stuck_count != 0
+                ):
+                    args.delay_review += args.adjust_value
+                    logging.error(
+                        f"Got stuck {stuck_count} times, updating delay between reviews. Delay: {args.delay_review}"
+                    )
+            continue
+
+        for area_count, area_id in enumerate(area_ids):
+            try:
+                restaurants = list(
+                    map(
+                        lambda rest: rest["CategoryName"],
+                        yemeksepeti.search_restaurants(catalog=city, area_id=area_id),
+                    )
+                )
+            except TypeError as e:
+                logging.error(f"Error while getting restaurants: {e}")
+                queue.append(False)
+                if all(queue):
+                    stuck_count += 1
+                    logging.error(
+                        f"Got NoneType from yemeksepeti.search_restaurants 5 times in a row. Waiting {(600 * stuck_count)/60} minutes"
+                    )
+                    time.sleep(600 * stuck_count)
+                    if (
+                        stuck_count % args.adjust_delay_every_n_stuck == 0
+                        and stuck_count != 0
+                    ):
+                        args.delay_review += args.adjust_value
+                        logging.error(
+                            f"Got stuck {stuck_count} times, updating delay between reviews. Delay: {args.delay_review}"
+                        )
+                continue
+
             for restaurant in restaurants:
                 time.sleep(args.delay_review)
                 reviews_temp = yemeksepeti.get_restaurant_reviews(
