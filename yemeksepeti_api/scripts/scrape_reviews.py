@@ -43,6 +43,12 @@ if __name__ == "__main__":
         help="List of cities to get reviews from (in the TR_{CITY_NAME} format). Defaults to all cities.",
     )
     parser.add_argument(
+        "--skip_cities",
+        nargs="+",
+        default=None,
+        help="List of cities to skip (in the TR_{CITY_NAME} format). Defaults to None.",
+    )
+    parser.add_argument(
         "-m",
         "--max_reviews",
         default=None,
@@ -84,6 +90,9 @@ if __name__ == "__main__":
         cities = list(map(lambda cat: cat["CatalogName"], yemeksepeti.get_catalogs()))
     else:
         cities = args.cities
+    if args.skip_cities:
+        for skip in args.skip_cities:
+            cities.remove(skip)
 
     reviews = []
     review_count = 0
@@ -131,7 +140,7 @@ if __name__ == "__main__":
                 reviews.extend(reviews_temp)
                 review_count += len(reviews_temp)
                 logging.info(
-                    f"City ({city}): {city_count}/{len(city)} | Area: {area_count}/{len(area_ids)} | Num of reviews: {review_count}"
+                    f"City ({city}): {city_count}/{len(cities)} | Area: {area_count}/{len(area_ids)} | Num of reviews: {review_count}"
                 )
 
                 if args.max_reviews is not None and review_count >= args.max_reviews:
@@ -143,12 +152,15 @@ if __name__ == "__main__":
                 logging.info(
                     f"Saving the data collected until now. Num of reviews: {review_count}"
                 )
-                pd.DataFrame(reviews)[columns].to_csv(
-                    args.output_path,
-                    mode="a",
-                    header=not os.path.exists(args.output_path),
-                    index=False,
-                )
+                try:
+                    pd.DataFrame(reviews)[columns].to_csv(
+                        args.output_path,
+                        mode="a",
+                        header=not os.path.exists(args.output_path),
+                        index=False,
+                    )
+                except KeyError as e:
+                    logging.error(f"Error while saving: {e}")
                 reviews = []
 
         if args.max_reviews is not None and len(reviews) >= args.max_reviews:
