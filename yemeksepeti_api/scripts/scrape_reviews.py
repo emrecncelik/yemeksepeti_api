@@ -107,7 +107,7 @@ if __name__ == "__main__":
             )
         except TypeError as e:
             logging.error(f"Error while getting areas: {e}")
-            queue.append(False)
+            queue.append(True)
             if all(queue):
                 stuck_count += 1
                 logging.error(
@@ -134,7 +134,7 @@ if __name__ == "__main__":
                 )
             except TypeError as e:
                 logging.error(f"Error while getting restaurants: {e}")
-                queue.append(False)
+                queue.append(True)
                 if all(queue):
                     stuck_count += 1
                     logging.error(
